@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /groups/{gid} {
+      // 認証済み（匿名含む）ならグループの読み書きOK
+      allow read, create, update, delete: if request.auth != null;
+    }
+
+    match /groups/{gid}/hands/{hid} {
+      // 自分の手は読める。他人の手は全員分そろって revealed == true になってから読める
+      allow get: if request.auth != null && (
+        resource.data.uid == request.auth.uid ||
+        get(/databases/$(database)/documents/groups/$(gid)).data.revealed == true
+      );
+      // 自分の手だけ、現在のラウンドで、まだ公開前のときに作成できる
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.hand in ['rock', 'scissors', 'paper']
+        && get(/databases/$(database)/documents/groups/$(gid)).data.round == request.resource.data.round
+        && get(/databases/$(database)/documents/groups/$(gid)).data.revealed == false;
+    }
+  }
+}
