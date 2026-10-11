@@ -38,7 +38,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, collection, setDoc, getDoc, updateDoc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 /* ★ Firebaseコンソールで取得した自分のプロジェクトの設定に置き換えてください */
@@ -76,7 +76,7 @@ let handsCache = null;   // { round, hands: { uid: hand } }
 let loadingHandsRound = null;
 let joinedNames = [];    // トップ画面用 [{id, name}]
 
-/* ---------- 認証（Googleログイン） ---------- */
+/* ---------- 認証（匿名ログイン） ---------- */
 let started = false;
 onAuthStateChanged(auth, u => {
   user = u;
@@ -84,19 +84,9 @@ onAuthStateChanged(auth, u => {
     if (!started) start();
     render();
   } else {
-    loaded = true;
-    render();
+    signInAnonymously(auth).catch(showError);
   }
 });
-
-function login() {
-  signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert(`ログインに失敗しました：${e.message}`));
-}
-
-async function logout() {
-  await signOut(auth);
-  location.href = './';
-}
 
 function start() {
   started = true;
@@ -221,19 +211,12 @@ function judgeHands(hands) {
 /* ---------- 描画 ---------- */
 function render() {
   if (!loaded) return;
-  if (!user) {
-    app.innerHTML = `<div class="card" style="text-align:center"><p>グループで遊ぶには Google アカウントでログインしてください。</p>
-      <div class="actions" style="justify-content:center"><button data-action="login">Googleでログイン</button></div></div>`;
-    return;
-  }
-  const bar = `<div class="card muted" style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px">
-      <span>${esc(user.displayName || user.email || 'ログイン中')}</span>
-      <button class="secondary" data-action="logout">ログアウト</button></div>`;
+  if (!user) return;
   let content;
   if (!groupId) content = renderHome();
   else if (!group) content = `<div class="card"><p>グループが見つかりません。</p><div class="actions"><a href="./"><button class="secondary">トップへ</button></a></div></div>`;
   else content = renderGroup();
-  app.innerHTML = bar + content;
+  app.innerHTML = content;
 }
 
 function renderHome() {
@@ -341,8 +324,6 @@ app.addEventListener('click', e => {
     case 'pick':   return pick(el.dataset.hand);
     case 'next':   return nextRound();
     case 'copy':   return copyInvite();
-    case 'login':  return login();
-    case 'logout': return logout();
   }
 });
 </script>
